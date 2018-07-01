@@ -15,7 +15,7 @@ import shlex
 # useful (but not much).
 
 # NOTE this command is directly lifted from runTagger.sh
-RUN_TAGGER_CMD = "java -XX:ParallelGCThreads=2 -Xmx500m -jar ark-tweet-nlp-0.3.2.jar"
+RUN_TAGGER_CMD = "java -XX:ParallelGCThreads=2 -Xmx500m -jar /home/hao/Workplace/HaoXu/Library/ark-tweet-nlp-0.3.2/ark-tweet-nlp-0.3.2.jar"
 
 
 def _split_results(rows):
@@ -47,7 +47,8 @@ def _call_runtagger(tweets, run_tagger_cmd=RUN_TAGGER_CMD):
     args = shlex.split(run_tagger_cmd)
     args.append('--output-format')
     args.append('conll')
-    po = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    po = subprocess.Popen(args, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # old call - made a direct call to runTagger.sh (not Windows friendly)
     #po = subprocess.Popen([run_tagger_cmd, '--output-format', 'conll'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = po.communicate(message)
@@ -55,9 +56,14 @@ def _call_runtagger(tweets, run_tagger_cmd=RUN_TAGGER_CMD):
     # ('hello\t!\t0.9858\nthere\tR\t0.4168\n\n',
     # 'Listening on stdin for input.  (-h for help)\nDetected text input format\nTokenized and tagged 1 tweets (2 tokens) in 7.5 seconds: 0.1 tweets/sec, 0.3 tokens/sec\n')
 
-    pos_result = result[0].strip('\n\n')  # get first line, remove final double carriage return
-    pos_result = pos_result.split('\n\n')  # split messages by double carriage returns
-    pos_results = [pr.split('\n') for pr in pos_result]  # split parts of message by each carriage return
+    # get first line, remove final double carriage return
+    pos_result = result[0].decode('utf-8').strip('\n\n')
+    # split messages by double carriage returns
+    pos_result = pos_result.split('\n\n')
+    # avoid missing result for empty lines
+    # pos_result = pos_result.replace("\n\n", "\n\n\n")
+    # split parts of message by each carriage return
+    pos_results = [pr.split('\n') for pr in pos_result]
     return pos_results
 
 
@@ -82,18 +88,20 @@ def check_script_is_present(run_tagger_cmd=RUN_TAGGER_CMD):
         while not po.poll():
             lines = [l for l in po.stdout]
         # we expected the first line of --help to look like the following:
-        assert "RunTagger [options]" in lines[0]
+        assert "RunTagger [options]" in lines[0].decode('utf-8')
         success = True
     except OSError as err:
-        print "Caught an OSError, have you specified the correct path to runTagger.sh? We are using \"%s\". Exception: %r" % (run_tagger_cmd, repr(err))
+        print("Caught an OSError, have you specified the correct path to runTagger.sh? We are using \"%s\". Exception: %r" % (
+            run_tagger_cmd, repr(err)))
     return success
 
 
 if __name__ == "__main__":
-    print "Checking that we can see \"%s\", this will crash if we can't" % (RUN_TAGGER_CMD)
+    print("Checking that we can see \"%s\", this will crash if we can't" %
+          (RUN_TAGGER_CMD))
     success = check_script_is_present()
     if success:
-        print "Success."
-        print "Now pass in two messages, get a list of tuples back:"
+        print("Success.")
+        print("Now pass in two messages, get a list of tuples back:")
         tweets = ['this is a message', 'and a second message']
-        print runtagger_parse(tweets)
+        print(runtagger_parse(tweets))
